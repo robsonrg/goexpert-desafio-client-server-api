@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
 	"time"
@@ -41,8 +41,9 @@ func main() {
 }
 
 func getExchangeRateHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("Start handling request")
-	defer slog.Info("End handling request")
+	slog.Info("> Start handling request")
+	defer slog.Info(":: End handling request")
+
 	w.Header().Set("Content-Type", "application/json")
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
@@ -54,8 +55,14 @@ func getExchangeRateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		slog.Error("Timeout when consuming the exchange rate API")
-		http.Error(w, err.Error(), http.StatusRequestTimeout)
+		if errors.Is(err, context.DeadlineExceeded) {
+			slog.Error("Request timeout to exchange rate API")
+			http.Error(w, "Request timeout to exchange rate API", http.StatusRequestTimeout)
+			return
+		}
+
+		slog.Error(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
@@ -71,6 +78,7 @@ func getExchangeRateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
+	slog.Info("Exchange rate received successfully", "rate", exchange.USDBRL.Bid)
 	if err := saveExchangeRate(exchange.USDBRL.Bid); err != nil {
 		slog.Error("Error to save exchange rate")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -86,10 +94,11 @@ func saveExchangeRate(exchangeRateValue string) error {
 		return err
 	}
 	defer stmt.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	//*tive que aumentar o tempo, pois na minha máquina estava dando timeout com 10ms
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	if _, err := stmt.ExecContext(ctx, exchangeRateValue); err != nil {
-		log.Printf("Error to insert exchange rate into database: %v", err)
+		slog.Error("Error to insert exchange rate into database")
 		return err
 	}
 	slog.Info("Exchange rate inserted into database")

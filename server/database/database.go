@@ -30,7 +30,7 @@ func initDatabase() *sql.DB {
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
 		rate_value TEXT
 	)`); err != nil {
-		slog.Error("Erro to create database table `exchanges`")
+		slog.Error("Error to create table `exchanges`")
 		panic(err)
 	}
 	slog.Info("Database `exchanges.db` ready")
