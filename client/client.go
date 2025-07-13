@@ -62,7 +62,7 @@ func saveExchangeRate(exchangeRateValue string) error {
 		panic(err)
 	}
 	defer f.Close()
-	_, err = f.WriteString(fmt.Sprintf("Dólar: {%s}\n", exchangeRateValue))
+	_, err = f.WriteString(fmt.Sprintf("Dólar: %s\n", exchangeRateValue))
 	if err != nil {
 		fmt.Printf("Erro gravando o arquivo: %v", err)
 		panic(err)
